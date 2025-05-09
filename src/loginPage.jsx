@@ -21,7 +21,7 @@ const LoginPage = () => {
 
   const handleLogin = async (values, { setSubmitting, setFieldError }) => {
     try {
-      const res = await axios.post('https://torpedo.dev.olx-pk.run/api/seller_center/auth/login', {
+      const res = await axios.post('https://torpedo.stage.olx-pk.run/api/seller_center/auth/login', {
         email: values.email,
         password: values.password,
       });
