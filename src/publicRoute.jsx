@@ -7,3 +7,5 @@ const PublicRoute = ({ children }) => {
 };
 
 export default PublicRoute;
+
+// public route blocks access to the login page if a token is present
