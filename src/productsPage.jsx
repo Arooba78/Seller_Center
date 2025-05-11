@@ -29,14 +29,16 @@ function ProductsPage() {
     const id = searchParams.get('f[id]') || '';
     const title = searchParams.get('s[title]') || '';
     const category_id = searchParams.get('f[categories.breadcrumb.id]') || '';
+    const page = parseInt(searchParams.get('page')) || 1;
+    const pageSize = parseInt(searchParams.get('limit')) || 10;
   
     setFilters({ id, title, category_id });
-    fetchProducts({ id, title, category_id }, 1, pagination.pageSize);
+    setPagination((prev) => ({ ...prev, current: page, pageSize }));
   
+    fetchProducts({ id, title, category_id }, page, pageSize);
     fetchCategories();
-  }, [location.search, navigate]);
+  }, [location.search, navigate]);  
   
-
   const fetchProducts = async (customFilters, page = 1, pageSize = 10) => {
     const token = localStorage.getItem('authToken');
     if (!token) {
@@ -91,8 +93,26 @@ function ProductsPage() {
     navigate('/');
   };
   const handleTableChange = (paginationInfo) => {
+    const updatedPagination = {
+      ...pagination,
+      current: paginationInfo.current,
+      pageSize: paginationInfo.pageSize,
+    };
+    setPagination(updatedPagination);
+  
+    const params = new URLSearchParams();
+    if (filters.id) params.append('f[id]', filters.id);
+    if (filters.title) params.append('s[title]', filters.title);
+    if (filters.category_id) {
+      params.append('f[categories.breadcrumb.id]', filters.category_id);
+    }
+    params.append('page', paginationInfo.current);
+    params.append('limit', paginationInfo.pageSize);
+  
+    navigate({ pathname: location.pathname, search: params.toString() });
+  
     fetchProducts(filters, paginationInfo.current, paginationInfo.pageSize);
-  };  
+  };   
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -110,10 +130,12 @@ function ProductsPage() {
     if (filters.title) params.append('s[title]', filters.title);
     if (filters.category_id) {
       params.append('f[categories.breadcrumb.id]', filters.category_id);
-    }    
-
+    }
+    params.append('page', pagination.current);
+    params.append('limit', pagination.pageSize);
+  
     navigate({ pathname: location.pathname, search: params.toString() });
-  };
+  };  
 
   const columns = [
     {
