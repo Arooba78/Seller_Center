@@ -10,9 +10,10 @@ const { Title } = Typography;
 function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [error, setError] = useState('');
-  const [filters, setFilters] = useState({ id: '', title: '', category_id: '' });
+  const [filters, setFilters] = useState({ id: '', title: '', category_id: '', discountApplied: false });
   const [categories, setCategories] = useState([]);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [readableUrl, setReadableUrl] = useState('');
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -31,11 +32,13 @@ function ProductsPage() {
     const category_id = searchParams.get('f[categories.breadcrumb.id]') || '';
     const page = parseInt(searchParams.get('page')) || 1;
     const pageSize = parseInt(searchParams.get('limit')) || 10;
-  
-    setFilters({ id, title, category_id });
+    const discountAppliedParam = searchParams.get('f[variants.discount][gt]');
+    const discountApplied = discountAppliedParam === '0' ? 'no' : discountAppliedParam ? 'yes' : '';
+    setFilters({ id, title, category_id, discountApplied });
+
     setPagination((prev) => ({ ...prev, current: page, pageSize }));
   
-    fetchProducts({ id, title, category_id }, page, pageSize);
+    fetchProducts({ id, title, category_id, discountApplied }, page, pageSize);
     fetchCategories();
   }, [location.search, navigate]);  
   
@@ -51,6 +54,11 @@ function ProductsPage() {
       if (customFilters.id) params.append('f[id]', customFilters.id);
       if (customFilters.title) params.append('s[title]', customFilters.title);
       if (customFilters.category_id) params.append('f[categories.breadcrumb.id]', customFilters.category_id);
+      if (customFilters.discountApplied === 'yes') {
+        params.append('f[variants.discount][gt]', '0');
+      } else if (customFilters.discountApplied === 'no') {
+        params.append('f[variants.discount]', '0');
+      }               
       params.append('limit', pageSize);
       params.append('page', page);
   
@@ -93,26 +101,31 @@ function ProductsPage() {
     navigate('/');
   };
   const handleTableChange = (paginationInfo) => {
-    const updatedPagination = {
+    setPagination({
       ...pagination,
       current: paginationInfo.current,
       pageSize: paginationInfo.pageSize,
-    };
-    setPagination(updatedPagination);
+    });
   
-    const params = new URLSearchParams();
-    if (filters.id) params.append('f[id]', filters.id);
-    if (filters.title) params.append('s[title]', filters.title);
-    if (filters.category_id) {
-      params.append('f[categories.breadcrumb.id]', filters.category_id);
+    const parts = [];
+  
+    if (filters.id) parts.push(`f[id]=${encodeURIComponent(filters.id)}`);
+    if (filters.title) parts.push(`s[title]=${encodeURIComponent(filters.title)}`);
+    if (filters.category_id) parts.push(`f[categories.breadcrumb.id]=${encodeURIComponent(filters.category_id)}`);
+    if (filters.discountApplied === 'yes') {
+      parts.push(`f[variants.discount][gt]=0`);
+    } else if (filters.discountApplied === 'no') {
+      parts.push(`f[variants.discount]=0`);
     }
-    params.append('page', paginationInfo.current);
-    params.append('limit', paginationInfo.pageSize);
   
-    navigate({ pathname: location.pathname, search: params.toString() });
+    parts.push(`page=${paginationInfo.current}`);
+    parts.push(`limit=${paginationInfo.pageSize}`);
   
+    const queryString = parts.join('&');
+  
+    navigate({ pathname: location.pathname, search: queryString });
     fetchProducts(filters, paginationInfo.current, paginationInfo.pageSize);
-  };   
+  };    
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -120,21 +133,27 @@ function ProductsPage() {
   };
 
   const resetFilters = () => {
-    setFilters({ id: '', title: '', category_id: '' });
+    setFilters({ id: '', title: '', category_id: '', discountApplied: '' });
     navigate({ pathname: location.pathname });
   };  
 
   const applyFilters = () => {
-    const params = new URLSearchParams();
-    if (filters.id) params.append('f[id]', filters.id);
-    if (filters.title) params.append('s[title]', filters.title);
-    if (filters.category_id) {
-      params.append('f[categories.breadcrumb.id]', filters.category_id);
-    }
-    params.append('page', pagination.current);
-    params.append('limit', pagination.pageSize);
+    const parts = [];
   
-    navigate({ pathname: location.pathname, search: params.toString() });
+    if (filters.id) parts.push(`f[id]=${encodeURIComponent(filters.id)}`);
+    if (filters.title) parts.push(`s[title]=${encodeURIComponent(filters.title)}`);
+    if (filters.category_id) parts.push(`f[categories.breadcrumb.id]=${encodeURIComponent(filters.category_id)}`);
+    if (filters.discountApplied === 'yes') {
+      parts.push(`f[variants.discount][gt]=0`);
+    } else if (filters.discountApplied === 'no') {
+      parts.push(`f[variants.discount]=0`);
+    }
+  
+    parts.push(`page=${pagination.current}`);
+    parts.push(`limit=${pagination.pageSize}`);
+  
+    const queryString = parts.join('&');
+    navigate({ pathname: location.pathname, search: queryString });
   };  
 
   const columns = [
@@ -183,43 +202,55 @@ function ProductsPage() {
             />
           )}
 
-          <Space style={{ marginBottom: '16px' }}>
-            <Input
-              name="id"
-              placeholder="Filter by ID"
-              value={filters.id}
-              onChange={handleFilterChange}
-              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-            />
-            <Input
-              name="title"
-              placeholder="Filter by Title"
-              value={filters.title}
-              onChange={handleFilterChange}
-              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-            />
-            <Select
-              placeholder="Filter by Category"
-              style={{ width: 200 }}
-              value={filters.category_id || undefined}
-              onChange={(value) => setFilters((prev) => ({ ...prev, category_id: value }))}
-              allowClear
-            >
-              {categories.map((cat) => (
-                <Option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </Option>
-              ))}
-            </Select>
-
-            <Button type="primary" onClick={applyFilters}>
-              Apply Filters
-            </Button>
-            <Button onClick={resetFilters}>
-              Reset Filters
-            </Button>
-          </Space>
-
+      <div style={{ marginBottom: '16px' }}>
+        <Space wrap style={{ marginBottom: '8px' }}>
+          <Input
+            name="id"
+            placeholder="Filter by ID"
+            value={filters.id}
+            onChange={handleFilterChange}
+            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+          />
+          <Input
+            name="title"
+            placeholder="Filter by Title"
+            value={filters.title}
+            onChange={handleFilterChange}
+            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+          />
+          <Select
+            placeholder="Filter by Category"
+            style={{ width: 200 }}
+            value={filters.category_id || undefined}
+            onChange={(value) => setFilters((prev) => ({ ...prev, category_id: value }))}
+            allowClear
+          >
+            {categories.map((cat) => (
+              <Option key={cat.id} value={cat.id}>
+                {cat.name}
+              </Option>
+            ))}
+          </Select>
+          <Select
+            placeholder="Discount Applied"
+            style={{ width: 160 }}
+            value={filters.discountApplied || undefined}
+            onChange={(value) => setFilters((prev) => ({ ...prev, discountApplied: value }))}
+            allowClear
+          >
+            <Option value="yes">Yes</Option>
+            <Option value="no">No</Option>
+          </Select>
+        </Space>
+        <Space>
+          <Button type="primary" onClick={applyFilters}>
+            Apply Filters
+          </Button>
+          <Button onClick={resetFilters}>
+            Reset Filters
+          </Button>
+        </Space>
+      </div>
           <Table
             dataSource={products}
             columns={columns}
