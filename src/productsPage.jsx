@@ -242,6 +242,7 @@ function ProductsPage() {
                 style={{ width: 200 }}
                 value={filters.category_id || undefined}
                 onChange={(value) => setFilters((prev) => ({ ...prev, category_id: value }))}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
                 allowClear
               >
                 {categories.map((cat) => (
@@ -255,6 +256,7 @@ function ProductsPage() {
                 style={{ width: 160 }}
                 value={filters.discountApplied || undefined}
                 onChange={(value) => setFilters((prev) => ({ ...prev, discountApplied: value }))}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
                 allowClear
               >
                 <Option value="yes">Yes</Option>
